@@ -1,0 +1,116 @@
+---
+title: "436-hw2"
+author: "Lanxi Zhang"
+date: "3/10/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(shiny)
+library(plotly)
+library(ggplot2)
+
+# The data was drug data, including 33 diseases and corresponding drugs, and was uploaded to github.
+# Data is preprocessed so that five columns Drug, Condition, Form, Indication and Type are specified as character types, and the empty string and "NA" are all treated as missing values.
+data <- read_csv("https://raw.githubusercontent.com/Lanxi-Ada/Lanxi/master/Drug_clean.csv", 
+                 col_types = cols(.default = "d", 
+                                   Drug = col_character(),
+                                   Condition = col_character(),
+                                   Form = col_character(),
+                                   Indication = col_character(),
+                                   Type = col_character()), 
+                 locale = locale(decimal_mark = ".", 
+                                 encoding = "UTF-8"), 
+                 show_col_types = FALSE, 
+                 na = c("", "NA"))
+
+
+# Defines a function called "Barplot" to generate a stacked bar graph.
+Barplot <- function(df, x, f) {
+  ggplot(df) +
+    geom_bar(aes(x = !!sym(x), fill = !!sym(f)), stat = "count") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))  
+  # Set the rotation Angle, portrait alignment, and landscape alignment for the X-axis label.
+}
+
+# Defines a function called "scatterplot" to generate a stacked scatter plot.
+scatterplot <- function(df, x, y, color, shape){
+  p <- ggplot(df) +
+    geom_point(aes(!!sym(x), !!sym(y), color = !!sym(color), shape = !!sym(shape))) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggplotly(p)  # Convert ggplot2 graphics to interactive graphics
+}
+
+maintext = p("This app is used to help you compare and analyze different characteristics such as effectiveness, cost, satisfaction, and category of different drugs. The dataset from https://www.webmd.com/ contains drug performance indicators for 33 common diseases. You can freely choose the X-axis, Y-axis, shape, and color to get different point charts, bar charts, and related tables. You can compare and select drugs by selecting the corresponding disease in the Condition module and using the selection box to choose the characteristics of the drug you are interested in.")
+
+
+# The UI for my application includes the Y-axis of the select module and possible choices of shapes and colors, as well as the checkbox for selecting the X-axis.
+
+ui <- fluidPage(
+  tags$style(HTML('.checkbox-inline {width: 20%;}')),
+  titlePanel("Drug Performance Evaluation"),
+  mainPanel(
+      HTML("<p>Author: Lanxi Zhang :D</p>"),
+      maintext,
+      HTML("<p> You can also use the mouse wheel to zoom in and out and drag graphics, and you can hover over data points to see details.</p>"),
+      HTML("<p>P.S. There is no limit to the number of selections in the Conditions module, you can select all diseases at the same time if you wish, but for aesthetic reasons, the authors recommend that you select up to 15 diseases at the same time.</p>")
+      ),
+  sidebarPanel(
+               HTML("<p>Some of the variables that are not easy to understand are noted below.</p>"),
+              HTML("<p>Condition-The medical condition associated with the drug..</p>"),
+              HTML("<p>Indication-The purpose of the drug.</p>"),
+              HTML("<p>Type-The type of drug (generic or brand).</p>"),
+              HTML("<p>Form-The form of the drug (e.g. tablet, capsule, etc.).</p>")
+               ),
+  
+  selectInput("Y", "Y-axis", choices = c("EaseOfUse", "Effective", "Price", "Satisfaction")),
+  selectInput("Color", "Points Color", choices = c("Form", "Type", "Indication","Drug")),
+  selectInput("Shape", "Points Shape", choices = c("Drug", "Form", "Type", "Indication")),
+  checkboxGroupInput("Condition", "Condition", choices = unique(data$Condition),inline = TRUE),
+  plotlyOutput("scatterplot", height = "700px", width = "100%"),
+  plotlyOutput("Barplot", height = "500px", width = "100%"),
+  dataTableOutput("datatable")
+)
+
+
+# The back-end logic of my Shiny application, which handles user input and output results.
+server <- function(input, output, session) {
+  dataset <- reactive({
+    data %>%
+      filter(Condition %in% input$Condition)
+  })
+  
+  output$scatterplot <- renderPlotly({
+    scatterplot(dataset(), "Condition", input$Y, input$Color, input$Shape)
+  })
+  
+  output$Barplot <- renderPlotly({
+    Barplot(dataset(), "Condition", input$Color)
+  })
+  
+  output$datatable <- renderDataTable({
+    dataset() %>% 
+      select("Condition",Drug, Form, Price, Type,  EaseOfUse, Effective,Satisfaction, input$Y, input$Color, input$Shape,Indication)
+  })
+}
+
+shinyApp(ui, server)
+
+```
+
+
+
+# 1.What are some interesting facts that you learned through the visualization? Provide at least one unexpected finding.
+# 2.How did you create the interface? Were there any data preparation steps? What guided the style customizations and interface layout that you used?
+# 3.What is the reactive graph structure of your application? 
+
+# A more detailed explanation can be found in the pdf file.
+
+
+
